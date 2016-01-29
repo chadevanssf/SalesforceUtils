@@ -1,0 +1,24 @@
+public class DateUtils {
+    /**
+    @brief Convert an ISO 8601 timestamp to an Apex \c DateTime value.
+    Uses the JSONParser getDateTimeValue() method.
+    See http://en.wikipedia.org/wiki/ISO_8601 for timestamp format details.
+    Throws a System.JSONException if \p iso8601_ts is not a valid ISO 8601 timestamp.
+    Sourced from http://salesforce.stackexchange.com/questions/1013/parsing-an-iso-8601-timestamp-to-a-datetime.
+    @param iso8601_ts Valid ISO 8601 timestamp.
+    @return a \c DateTime value for the given timestamp
+    */
+    public static DateTime convertJSONDateString( String iso8601_ts)
+    {
+        DateTime dt = (DateTime) JSON.deserialize(
+                                        '"' + iso8601_ts + '"', DateTime.class);
+        // Bug in JSONParser or DateTime object results in a malformed DateTime,
+        // so convert to Long and back to DateTime.  Without the conversion,
+        // methods that access timeGmt() and its components will actually get
+        // local time instead of GMT.
+        return DateTime.newInstance( dt.getTime());
+    
+        // Once bug is fixed, this return is preferred
+        // return dt;
+    }
+}
