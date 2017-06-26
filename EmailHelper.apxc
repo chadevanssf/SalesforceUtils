@@ -1,0 +1,62 @@
+global class EmailHelper
+{
+    public static void sendEmailWithAttachments(String emailTemplateName, ID contextRecord, ID recipient)
+    {
+        List<EmailTemplate> ets = [SELECT id FROM EmailTemplate WHERE DeveloperName =: emailTemplateName LIMIT 1];
+        
+        for (EmailTemplate et : ets)
+        {
+            //New instance of a single email message
+            Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
+            
+            mail.setTemplateId(et.Id);
+            
+            mail.setTargetObjectId(recipient);
+            mail.setWhatId(contextRecord);
+            
+            mail.setBccSender(false);
+            mail.setUseSignature(false);
+            mail.setReplyTo('bscott28.dev@its.jnj.com');
+            mail.setSenderDisplayName('Bryan Scott');
+            mail.setSaveAsActivity(false);
+            
+            // Reference the attachment page and pass in the account ID 
+            Integer numAtts = [SELECT count() FROM ContentDocumentLink WHERE LinkedEntityId = :contextRecord];
+            
+            if (numAtts > 0)
+            {
+                List<ContentDocumentLink> cdls = [SELECT ContentDocumentId FROM ContentDocumentLink WHERE LinkedEntityId = :contextRecord];
+                List<Id> docIds = new List<Id>();
+                for (ContentDocumentLink cdl : cdls)
+                {
+                    docIds.add(cdl.ContentDocumentId);
+                }
+                
+                System.debug('@@@ DEBUG @@@ - docIds' + docIds);
+                
+                List<ContentVersion> documents = [
+                    SELECT Id, Title, FileType, VersionData, isLatest, ContentDocumentId
+                    FROM ContentVersion
+                    WHERE isLatest = true AND ContentDocumentId IN :docIds];
+                
+                // Create the email attachment
+                List<Messaging.Emailfileattachment> efaList = new List<Messaging.Emailfileattachment>();
+                
+                for (ContentVersion document : documents)
+                {
+                    Messaging.Emailfileattachment efa = new Messaging.Emailfileattachment();
+                    
+                    efa.setFileName(document.Title);
+                    efa.setBody(document.VersionData);
+                    //efa.setContentType(document.ContentType);
+                    
+                    efaList.add(efa);
+                }
+                
+                mail.setFileAttachments(efaList);
+            }
+            
+            Messaging.sendEmail(new Messaging.SingleEmailMessage[] { mail });
+        }
+    }
+}
